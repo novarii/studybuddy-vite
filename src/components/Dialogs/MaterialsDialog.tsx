@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FileTextIcon, MoveIcon, TrashIcon, VideoIcon, ExternalLinkIcon } from "lucide-react";
+import { FileTextIcon, MoveIcon, TrashIcon, VideoIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
@@ -29,6 +29,7 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
   const [backendVideos, setBackendVideos] = useState<any[]>([]);
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null);
 
   // Fetch videos from backend when the dialog opens
   useEffect(() => {
@@ -61,6 +62,28 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
   }, [isOpen]);
 
   const baseVideoUrl = import.meta.env.VITE_VIDEO_API_URL || "http://localhost:8000";
+
+  const handleDeleteServerVideo = async (id: string | undefined) => {
+    if (!id) return;
+
+    try {
+      setDeletingVideoId(id);
+      const response = await fetch(`${baseVideoUrl}/api/videos/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete video");
+      }
+
+      setBackendVideos(prev => prev.filter(video => (video.id || video.video_id || video.uuid) !== id));
+    } catch (error) {
+      console.error("Error deleting video", error);
+      setVideoError("Unable to delete lecture recording.");
+    } finally {
+      setDeletingVideoId(null);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -177,7 +200,6 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
                     {backendVideos.map((video, index) => {
                       const id = video.id || video.video_id || video.uuid;
                       const name = video.title || video.name || `Recording ${index + 1}`;
-                      const url = id ? `${baseVideoUrl}/api/videos/${id}/file` : null;
 
                       return (
                         <div
@@ -189,17 +211,31 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
                           <span className="text-sm flex-1 truncate" style={{ color: colors.primaryText }}>
                             {name}
                           </span>
-                          {url && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 flex-shrink-0"
-                              style={{ color: colors.primaryText }}
-                              onClick={() => window.open(url, "_blank")}
-                            >
-                              <ExternalLinkIcon className="w-4 h-4" />
-                            </Button>
-                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 flex-shrink-0"
+                                style={{ color: colors.primaryText }}
+                              >
+                                <MoveIcon className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent style={{ backgroundColor: colors.panel, borderColor: colors.border }}>
+                              <DropdownMenuLabel style={{ color: colors.primaryText }}>
+                                Move to Course (coming soon)
+                              </DropdownMenuLabel>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <button
+                            onClick={() => handleDeleteServerVideo(id)}
+                            className="flex-shrink-0"
+                            style={{ color: colors.primaryText }}
+                            disabled={deletingVideoId === id}
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
                         </div>
                       );
                     })}
