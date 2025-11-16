@@ -1,4 +1,3 @@
-@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -47,8 +46,7 @@
 }
 
 @keyframes bounce {
-  0%,
-  100% {
+  0%, 100% {
     transform: translateY(0);
   }
   50% {
@@ -129,6 +127,10 @@
   }
 }
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -195,21 +197,20 @@
 
     --radius: 0.5rem;
   }
+}
 
+@layer base {
   * {
     @apply border-border;
   }
 
-  html,
-  body,
-  #root {
+  html, body, #app {
     height: 100%;
-    overflow: hidden;
+    overflow: hidden; /* Prevent vertical scrolling on the entire page */
   }
 
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    margin: 0;
   }
 }
