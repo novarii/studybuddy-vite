@@ -108,17 +108,6 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ isCollapsed, colors,
                     Your browser does not support the video tag.
                   </video>
                 </div>
-                <div className="p-4 border-t flex items-center justify-center gap-4" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
-                  <Button variant="ghost" size="icon" className="h-10 w-10" style={{ color: colors.primaryText }} onClick={handleSkipBack}>
-                    <SkipBackIcon className="w-5 h-5" />
-                  </Button>
-                  <Button size="icon" className="h-12 w-12 rounded-full" style={{ backgroundColor: colors.accent, color: colors.buttonIcon }} onClick={handlePlayPause}>
-                    {isPlaying ? <PauseIcon className="w-6 h-6" /> : <PlayIcon className="w-6 h-6" />}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-10 w-10" style={{ color: colors.primaryText }} onClick={handleSkipForward}>
-                    <SkipForwardIcon className="w-5 h-5" />
-                  </Button>
-                </div>
               </CardContent>
             ) : (
               <CardContent className="p-8 text-center">

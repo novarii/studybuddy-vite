@@ -38,6 +38,7 @@ export const Studybuddy = () => {
   const { panelWidth, isResizing, handleMouseDown } = useResizePanel(400, 800, 400);
 
   const handleCourseChange = (course: Course) => {
+    console.log("Current courseId:", course.id);
     setCurrentCourseId(course.id);
     setSelectedTopic(course.content[0]?.children[0] || "");
   };
