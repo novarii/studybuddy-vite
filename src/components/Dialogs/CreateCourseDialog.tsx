@@ -11,11 +11,20 @@ type CreateCourseDialogProps = {
   onClose: () => void;
   onCourseNameChange: (name: string) => void;
   onCreate: () => void;
+  isSubmitting: boolean;
 };
 
-export const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, courseName, colors, onClose, onCourseNameChange, onCreate }) => {
+export const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({
+  isOpen,
+  courseName,
+  colors,
+  onClose,
+  onCourseNameChange,
+  onCreate,
+  isSubmitting,
+}) => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && courseName.trim()) {
+    if (e.key === "Enter" && courseName.trim() && !isSubmitting) {
       onCreate();
     }
   };
@@ -55,8 +64,12 @@ export const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, 
           <Button variant="ghost" onClick={onClose} style={{ color: colors.primaryText }}>
             Cancel
           </Button>
-          <Button onClick={onCreate} disabled={!courseName.trim()} style={{ backgroundColor: colors.accent, color: colors.buttonIcon }}>
-            Create Course
+          <Button
+            onClick={onCreate}
+            disabled={!courseName.trim() || isSubmitting}
+            style={{ backgroundColor: colors.accent, color: colors.buttonIcon }}
+          >
+            {isSubmitting ? "Creating..." : "Create Course"}
           </Button>
         </DialogFooter>
       </DialogContent>

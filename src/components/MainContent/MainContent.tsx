@@ -15,8 +15,9 @@ type MainContentProps = {
   onDrop: (e: React.DragEvent) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveFile: (index: number) => void;
-  onSaveMaterials: () => void;
+  onSaveMaterials: () => void | Promise<void>;
   onOpenMaterials: () => void;
+  isSavingMaterials: boolean;
 };
 
 export const MainContent: React.FC<MainContentProps> = ({
@@ -31,6 +32,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   onRemoveFile,
   onSaveMaterials,
   onOpenMaterials,
+  isSavingMaterials,
 }) => {
   return (
     <main className="flex-1 flex flex-col min-h-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
@@ -108,14 +110,17 @@ export const MainContent: React.FC<MainContentProps> = ({
             </div>
             <Button
               size="sm"
-              onClick={onSaveMaterials}
+              onClick={() => {
+                void onSaveMaterials();
+              }}
+              disabled={isSavingMaterials}
               style={{
                 backgroundColor: colors.accent,
                 color: colors.buttonIcon,
                 width: "100%",
               }}
             >
-              Save Materials to Course
+              {isSavingMaterials ? "Uploading..." : "Save Materials to Course"}
             </Button>
           </div>
         )}

@@ -12,6 +12,7 @@ import { useFileUpload } from "../../hooks/useFileUpload";
 import { useResizePanel } from "../../hooks/useResizePanel";
 import { darkModeColors, lightModeColors } from "../../constants/colors";
 import type { Course, Material } from "../../types";
+import { apiService } from "../../services/api";
 
 export const Studybuddy = () => {
   const { toast } = useToast();
@@ -29,11 +30,24 @@ export const Studybuddy = () => {
   const [hoveredCourseId, setHoveredCourseId] = useState<string | null>(null);
   const [pageNumber] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isCreatingCourse, setIsCreatingCourse] = useState(false);
+  const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
 
   const colors = isDarkMode ? darkModeColors : lightModeColors;
   const currentCourse = courses.find((c) => c.id === currentCourseId) ?? courses[0] ?? null;
 
-  const { uploadedFiles, isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop, handleFileSelect, removeFile, clearFiles } = useFileUpload();
+  const {
+    uploadedFiles,
+    isDragging,
+    handleDragEnter,
+    handleDragLeave,
+    handleDragOver,
+    handleDrop,
+    handleFileSelect,
+    removeFile,
+    clearFiles,
+    replaceFiles,
+  } = useFileUpload();
 
   const { panelWidth, isResizing, handleMouseDown } = useResizePanel(400, 800, 400);
 
@@ -66,56 +80,95 @@ export const Studybuddy = () => {
     }
   };
 
-  const handleCreateCourse = () => {
-    if (!newCourseName.trim()) return;
-
-    const newCourse: Course = {
-      id: `course-${Date.now()}`,
-      name: newCourseName.trim(),
-      content: [],
-    };
-
-    setCourses([...courses, newCourse]);
-    setCurrentCourseId(newCourse.id);
-    setSelectedTopic(""); // Reset selected topic for new course
-    setNewCourseName("");
-    setIsCreateCourseOpen(false);
-    
-    // Initialize chat history for the new course
-    // The useChat hook will handle adding an empty array for the new courseId
-
-    toast({
-      title: "Course created",
-      description: `${newCourse.name} has been created successfully`,
-    });
-  };
-
-  const handleSaveMaterials = () => {
-    if (!currentCourse) return;
+  const handleCreateCourse = async () => {
+    const trimmedName = newCourseName.trim();
+    if (!trimmedName || isCreatingCourse) return;
 
     try {
-      const newMaterials: Material[] = uploadedFiles.map((file) => ({
-        id: `material-${Date.now()}-${Math.random()}`,
-        name: file.name,
-        file: file,
-        courseId: currentCourseId,
-        type: "pdf" as const,
-      }));
+      setIsCreatingCourse(true);
+      const createdCourse = await apiService.createCourse(trimmedName);
 
-      setMaterials([...materials, ...newMaterials]);
-      clearFiles();
+      setCourses(prevCourses => [...prevCourses, createdCourse]);
+      setCurrentCourseId(createdCourse.id);
+      setSelectedTopic(createdCourse.content[0]?.children[0] || "");
+      setNewCourseName("");
+      setIsCreateCourseOpen(false);
 
       toast({
-        title: "Upload successful",
-        description: `${newMaterials.length} file${newMaterials.length > 1 ? "s" : ""} uploaded to ${currentCourse.name}`,
+        title: "Course created",
+        description: `${createdCourse.name} has been created successfully`,
       });
     } catch (error) {
       toast({
-        title: "Upload failed",
-        description: "Failed to save materials. Please try again.",
+        title: "Course creation failed",
+        description: "We couldn't create the course. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsCreatingCourse(false);
     }
+  };
+
+  const handleSaveMaterials = async () => {
+    if (!currentCourse || uploadedFiles.length === 0 || isUploadingDocuments) return;
+
+    const filesToUpload = [...uploadedFiles];
+    const failedFiles: File[] = [];
+    const successfulMaterials: Material[] = [];
+
+    setIsUploadingDocuments(true);
+
+    for (const file of filesToUpload) {
+      try {
+        const response = await apiService.uploadDocument(file, currentCourse.id);
+        const metadata = response.document ?? {};
+        const documentId =
+          metadata.document_id ??
+          metadata.id ??
+          metadata.uuid ??
+          `document-${Date.now()}-${Math.random()}`;
+        const materialName = metadata.title ?? metadata.filename ?? metadata.name ?? file.name;
+        const status: Material["status"] =
+          response.processing === "queued"
+            ? "queued"
+            : response.processing === "processing"
+            ? "processing"
+            : "stored";
+
+        successfulMaterials.push({
+          id: documentId,
+          name: materialName,
+          courseId: currentCourse.id,
+          type: "pdf",
+          documentId,
+          status,
+        });
+      } catch (error) {
+        console.error("Error uploading document:", error);
+        failedFiles.push(file);
+      }
+    }
+
+    if (successfulMaterials.length > 0) {
+      setMaterials(prevMaterials => [...prevMaterials, ...successfulMaterials]);
+      toast({
+        title: "Upload successful",
+        description: `${successfulMaterials.length} file${successfulMaterials.length > 1 ? "s" : ""} uploaded to ${currentCourse.name}`,
+      });
+    }
+
+    if (failedFiles.length > 0) {
+      toast({
+        title: "Upload failed",
+        description: `${failedFiles.length} file${failedFiles.length > 1 ? "s" : ""} failed to upload. Please try again.`,
+        variant: "destructive",
+      });
+      replaceFiles(failedFiles);
+    } else {
+      clearFiles();
+    }
+
+    setIsUploadingDocuments(false);
   };
 
   const handleUploadClick = () => {
@@ -184,6 +237,7 @@ export const Studybuddy = () => {
             onRemoveFile={removeFile}
             onSaveMaterials={handleSaveMaterials}
             onOpenMaterials={() => setIsMaterialsDialogOpen(true)}
+            isSavingMaterials={isUploadingDocuments}
           />
 
           <RightPanel
@@ -233,6 +287,7 @@ export const Studybuddy = () => {
         }}
         onCourseNameChange={setNewCourseName}
         onCreate={handleCreateCourse}
+        isSubmitting={isCreatingCourse}
       />
 
       {currentCourse && (

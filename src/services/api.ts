@@ -15,7 +15,65 @@ export interface LLMResponse {
   }>;
 }
 
+export interface DocumentUploadResponse {
+  status: string;
+  document?: {
+    document_id?: string;
+    id?: string;
+    uuid?: string;
+    filename?: string;
+    name?: string;
+    title?: string;
+    course_id?: string;
+  };
+  processing?: string;
+}
+
 export const apiService = {
+  async createCourse(name: string): Promise<Course> {
+    try {
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        throw new Error("Course name is required");
+      }
+
+      const response = await fetch(`${API_BASE_URL}/courses`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: trimmedName }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create course");
+      }
+
+      const data = await response.json();
+      const coursePayload = (data.course ?? data) as {
+        id?: string;
+        course_id?: string;
+        name?: string;
+        content?: Course["content"];
+      };
+
+      const id = coursePayload.id ?? coursePayload.course_id;
+
+      if (!id) {
+        throw new Error("Invalid course response: missing id");
+      }
+
+      return {
+        id,
+        name: coursePayload.name ?? trimmedName,
+        content: coursePayload.content ?? [],
+      };
+    } catch (error) {
+      console.error("Error creating course:", error);
+      throw error;
+    }
+  },
+
   async sendMessage(
     message: string,
     courseId: string,
@@ -50,24 +108,24 @@ export const apiService = {
     }
   },
 
-  async uploadMaterial(file: File, courseId: string): Promise<{ success: boolean; materialId: string }> {
+  async uploadDocument(file: File, courseId: string): Promise<DocumentUploadResponse> {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("courseId", courseId);
+      formData.append("course_id", courseId);
 
-      const response = await fetch(`${API_BASE_URL}/materials/upload`, {
+      const response = await fetch(`${API_BASE_URL}/documents/upload`, {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error("Failed to upload material");
+        throw new Error("Failed to upload document");
       }
 
       return await response.json();
     } catch (error) {
-      console.error("Error uploading material:", error);
+      console.error("Error uploading document:", error);
       throw error;
     }
   },

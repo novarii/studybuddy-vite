@@ -11,9 +11,10 @@ export type MaterialType = "pdf" | "video";
 export type Material = {
   id: string;
   name: string;
-  file: File;
   courseId: string;
   type: MaterialType;
+  documentId?: string;
+  status?: "stored" | "processing" | "queued";
 };
 
 export type Course = {

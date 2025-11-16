@@ -48,13 +48,13 @@ export const useFileUpload = () => {
 
     const files = Array.from(e.dataTransfer.files);
     const pdfFiles = validatePdfFiles(files);
-    setUploadedFiles([...uploadedFiles, ...pdfFiles]);
+    setUploadedFiles(prev => [...prev, ...pdfFiles]);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const pdfFiles = validatePdfFiles(files);
-    setUploadedFiles([...uploadedFiles, ...pdfFiles]);
+    setUploadedFiles(prev => [...prev, ...pdfFiles]);
   };
 
   const removeFile = (index: number) => {
@@ -71,6 +71,10 @@ export const useFileUpload = () => {
     setUploadedFiles([]);
   };
 
+  const replaceFiles = (files: File[]) => {
+    setUploadedFiles(files);
+  };
+
   return {
     uploadedFiles,
     isDragging,
@@ -81,5 +85,6 @@ export const useFileUpload = () => {
     handleFileSelect,
     removeFile,
     clearFiles,
+    replaceFiles,
   };
 };
