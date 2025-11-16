@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ChevronUpIcon, ChevronDownIcon, UploadIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -14,7 +14,66 @@ type SlidesSectionProps = {
   onUploadClick: () => void;
 };
 
-export const SlidesSection: React.FC<SlidesSectionProps> = ({ isCollapsed, colors, pageNumber, hasMaterials, onToggle, onUploadClick }) => {
+export const SlidesSection: React.FC<SlidesSectionProps> = ({
+  isCollapsed,
+  colors,
+  pageNumber,
+  hasMaterials,
+  onToggle,
+  onUploadClick,
+}) => {
+  const [pdfSrc, setPdfSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch first PDF from backend when the section is opened
+  useEffect(() => {
+    if (isCollapsed || pdfSrc || isLoading) return;
+
+    const fetchFirstDocument = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const baseUrl =
+          import.meta.env.VITE_BACKEND_API_URL ||
+          import.meta.env.VITE_VIDEO_API_URL ||
+          "http://localhost:8000";
+
+        const response = await fetch(`${baseUrl}/api/documents`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch documents");
+        }
+
+        const data = await response.json();
+        const documents = Array.isArray(data?.documents) ? data.documents : [];
+
+        if (documents.length > 0) {
+          const first = documents[0];
+          const documentId = first.document_id || first.id || first.uuid;
+
+          if (!documentId) {
+            setError("Invalid document data received from server.");
+            return;
+          }
+
+          // Backend serves the PDF via the /api/documents/{document_id} route
+          setPdfSrc(`${baseUrl}/api/documents/${documentId}`);
+        }
+      } catch (err) {
+        console.error("Error fetching documents", err);
+        setError("Unable to load course slides.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void fetchFirstDocument();
+  }, [isCollapsed, pdfSrc, isLoading]);
+
+  const hasAnySlides = !!pdfSrc || hasMaterials;
+
   return (
     <section
       className={cn("flex flex-col border-b transition-all duration-300", isCollapsed ? "flex-none" : "")}
@@ -36,13 +95,13 @@ export const SlidesSection: React.FC<SlidesSectionProps> = ({ isCollapsed, color
       {!isCollapsed && (
         <div className="flex-1 p-4 overflow-hidden">
           <Card className="overflow-hidden h-full flex items-center justify-center" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
-            {hasMaterials ? (
+            {hasAnySlides && pdfSrc ? (
               <CardContent className="p-0 h-full w-full">
                 <iframe
-                  src={`https://arxiv.org/pdf/1706.03762.pdf#page=${pageNumber}`}
+                  src={`${pdfSrc}#page=${pageNumber}`}
                   className="w-full h-full border-0"
                   title="PDF Viewer"
-                  key={pageNumber}
+                  key={pdfSrc + pageNumber}
                 />
               </CardContent>
             ) : (
@@ -56,10 +115,12 @@ export const SlidesSection: React.FC<SlidesSectionProps> = ({ isCollapsed, color
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold mb-2" style={{ color: colors.primaryText }}>
-                      No Course Materials
+                      {isLoading ? "Loading course materials..." : "No Course Materials"}
                     </h3>
                     <p className="text-sm mb-4" style={{ color: colors.secondaryText }}>
-                      Upload PDFs, slides, or course materials to get started
+                      {error
+                        ? error
+                        : "Upload PDFs, slides, or course materials to get started"}
                     </p>
                   </div>
                   <Button

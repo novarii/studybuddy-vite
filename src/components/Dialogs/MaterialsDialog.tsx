@@ -30,6 +30,9 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null);
+  const [backendDocuments, setBackendDocuments] = useState<any[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+  const [documentError, setDocumentError] = useState<string | null>(null);
 
   // Fetch videos from backend when the dialog opens
   useEffect(() => {
@@ -59,16 +62,48 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
     };
 
     void fetchVideos();
+
+    const fetchDocuments = async () => {
+      try {
+        setIsLoadingDocuments(true);
+        setDocumentError(null);
+
+        const baseUrl =
+          import.meta.env.VITE_BACKEND_API_URL ||
+          import.meta.env.VITE_VIDEO_API_URL ||
+          "http://localhost:8000";
+
+        const response = await fetch(`${baseUrl}/api/documents`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch documents");
+        }
+
+        const data = await response.json();
+        const documents = Array.isArray(data?.documents) ? data.documents : [];
+        setBackendDocuments(documents);
+      } catch (error) {
+        console.error("Error fetching documents", error);
+        setDocumentError("Unable to load course documents from the server.");
+      } finally {
+        setIsLoadingDocuments(false);
+      }
+    };
+
+    void fetchDocuments();
   }, [isOpen]);
 
-  const baseVideoUrl = import.meta.env.VITE_VIDEO_API_URL || "http://localhost:8000";
+  const baseApiUrl =
+    import.meta.env.VITE_BACKEND_API_URL ||
+    import.meta.env.VITE_VIDEO_API_URL ||
+    "http://localhost:8000";
 
   const handleDeleteServerVideo = async (id: string | undefined) => {
     if (!id) return;
 
     try {
       setDeletingVideoId(id);
-      const response = await fetch(`${baseVideoUrl}/api/videos/${id}`, {
+      const response = await fetch(`${baseApiUrl}/api/videos/${id}`, {
         method: "DELETE",
       });
 
@@ -94,20 +129,28 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
-          {materials.length === 0 && backendVideos.length === 0 && !isLoadingVideos && !videoError ? (
+          {materials.length === 0 &&
+          backendVideos.length === 0 &&
+          backendDocuments.length === 0 &&
+          !isLoadingVideos &&
+          !videoError &&
+          !isLoadingDocuments &&
+          !documentError ? (
             <div className="text-center py-8" style={{ color: colors.secondaryText }}>
               <FileTextIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No materials uploaded for this course yet.</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {materials.filter(m => m.type === 'pdf').length > 0 && (
+              {(materials.filter(m => m.type === "pdf").length > 0 || backendDocuments.length > 0) && (
                 <div>
                   <h3 className="text-sm font-semibold mb-2 px-1" style={{ color: colors.primaryText }}>
                     Course Materials (PDFs)
                   </h3>
                   <div className="space-y-2">
-                    {materials.filter(m => m.type === 'pdf').map((material) => (
+                    {materials
+                      .filter((m) => m.type === "pdf")
+                      .map((material) => (
                       <div key={material.id} className="flex items-center gap-3 p-3 rounded-lg border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
                         <FileTextIcon className="w-5 h-5 flex-shrink-0" style={{ color: colors.accent }} />
                         <span className="text-sm flex-1 truncate" style={{ color: colors.primaryText }}>
@@ -136,6 +179,41 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
                         </button>
                       </div>
                     ))}
+                    {backendDocuments.map((doc, index) => {
+                      const id = doc.id || doc.document_id || doc.uuid;
+                      const name = doc.title || doc.filename || doc.name || `Document ${index + 1}`;
+
+                      return (
+                        <div
+                          key={id ?? `doc-${index}`}
+                          className="flex items-center gap-3 p-3 rounded-lg border"
+                          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+                        >
+                          <FileTextIcon className="w-5 h-5 flex-shrink-0" style={{ color: colors.accent }} />
+                          <span className="text-sm flex-1 truncate" style={{ color: colors.primaryText }}>
+                            {name}
+                          </span>
+                          {/* Move placeholder for server PDFs */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 flex-shrink-0"
+                                style={{ color: colors.primaryText }}
+                              >
+                                <MoveIcon className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent style={{ backgroundColor: colors.panel, borderColor: colors.border }}>
+                              <DropdownMenuLabel style={{ color: colors.primaryText }}>
+                                Move to Course (coming soon)
+                              </DropdownMenuLabel>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

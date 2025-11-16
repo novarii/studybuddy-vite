@@ -1,9 +1,11 @@
 import type { Course, ChatMessage } from "../types";
 
-const API_BASE_URL = process.env.VITE_API_URL || "http://localhost:3001/api";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 export interface LLMResponse {
   message: string;
+  session_id?: string;
   courseContent?: Course["content"];
   pdfUrl?: string;
   videoUrl?: string;
@@ -14,17 +16,27 @@ export interface LLMResponse {
 }
 
 export const apiService = {
-  async sendMessage(message: string, courseId: string): Promise<LLMResponse> {
+  async sendMessage(
+    message: string,
+    courseId: string,
+    sessionId?: string
+  ): Promise<LLMResponse> {
     try {
+      const payload: Record<string, unknown> = {
+        message,
+        course_id: courseId,
+      };
+
+      if (sessionId) {
+        payload.session_id = sessionId;
+      }
+
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          message,
-          courseId,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
