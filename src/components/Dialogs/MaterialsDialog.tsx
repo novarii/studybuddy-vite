@@ -1,5 +1,5 @@
-import React from "react";
-import { FileTextIcon, MoveIcon, TrashIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { FileTextIcon, MoveIcon, TrashIcon, VideoIcon, ExternalLinkIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
@@ -26,6 +26,42 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
   onDeleteMaterial,
   onMoveMaterial,
 }) => {
+  const [backendVideos, setBackendVideos] = useState<any[]>([]);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+
+  // Fetch videos from backend when the dialog opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchVideos = async () => {
+      try {
+        setIsLoadingVideos(true);
+        setVideoError(null);
+
+        const baseUrl = import.meta.env.VITE_VIDEO_API_URL || "http://localhost:8000";
+        const response = await fetch(`${baseUrl}/api/videos`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch videos");
+        }
+
+        const data = await response.json();
+        const videos = Array.isArray(data?.videos) ? data.videos : [];
+        setBackendVideos(videos);
+      } catch (error) {
+        console.error("Error fetching videos", error);
+        setVideoError("Unable to load lecture recordings from the server.");
+      } finally {
+        setIsLoadingVideos(false);
+      }
+    };
+
+    void fetchVideos();
+  }, [isOpen]);
+
+  const baseVideoUrl = import.meta.env.VITE_VIDEO_API_URL || "http://localhost:8000";
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent style={{ backgroundColor: colors.panel, borderColor: colors.border }} className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -35,7 +71,7 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
-          {materials.length === 0 ? (
+          {materials.length === 0 && backendVideos.length === 0 && !isLoadingVideos && !videoError ? (
             <div className="text-center py-8" style={{ color: colors.secondaryText }}>
               <FileTextIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No materials uploaded for this course yet.</p>
@@ -119,6 +155,57 @@ export const MaterialsDialog: React.FC<MaterialsDialogProps> = ({
                   </div>
                 </div>
               )}
+
+              <div>
+                <h3 className="text-sm font-semibold mb-2 px-1" style={{ color: colors.primaryText }}>
+                  Server Lecture Recordings
+                </h3>
+                {isLoadingVideos ? (
+                  <p className="text-sm px-1" style={{ color: colors.secondaryText }}>
+                    Loading recordings...
+                  </p>
+                ) : videoError ? (
+                  <p className="text-sm px-1" style={{ color: colors.secondaryText }}>
+                    {videoError}
+                  </p>
+                ) : backendVideos.length === 0 ? (
+                  <p className="text-sm px-1" style={{ color: colors.secondaryText }}>
+                    No recordings available from the server yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {backendVideos.map((video, index) => {
+                      const id = video.id || video.video_id || video.uuid;
+                      const name = video.title || video.name || `Recording ${index + 1}`;
+                      const url = id ? `${baseVideoUrl}/api/videos/${id}/file` : null;
+
+                      return (
+                        <div
+                          key={id ?? index}
+                          className="flex items-center gap-3 p-3 rounded-lg border"
+                          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+                        >
+                          <VideoIcon className="w-5 h-5 flex-shrink-0" style={{ color: colors.accent }} />
+                          <span className="text-sm flex-1 truncate" style={{ color: colors.primaryText }}>
+                            {name}
+                          </span>
+                          {url && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 flex-shrink-0"
+                              style={{ color: colors.primaryText }}
+                              onClick={() => window.open(url, "_blank")}
+                            >
+                              <ExternalLinkIcon className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

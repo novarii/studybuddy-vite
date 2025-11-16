@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ChevronUpIcon, ChevronDownIcon, SkipBackIcon, PlayIcon, PauseIcon, SkipForwardIcon, VideoIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -9,12 +9,56 @@ type VideoSectionProps = {
   isCollapsed: boolean;
   colors: ColorScheme;
   isPlaying: boolean;
-  hasVideos: boolean;
   onToggle: () => void;
   onSetPlaying: (playing: boolean) => void;
 };
 
-export const VideoSection: React.FC<VideoSectionProps> = ({ isCollapsed, colors, isPlaying, hasVideos, onToggle, onSetPlaying }) => {
+export const VideoSection: React.FC<VideoSectionProps> = ({ isCollapsed, colors, isPlaying, onToggle, onSetPlaying }) => {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch the first available video from the backend when the section is opened
+  useEffect(() => {
+    if (isCollapsed || videoUrl || isLoading) return;
+
+    const fetchVideo = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const baseUrl = import.meta.env.VITE_VIDEO_API_URL || "http://localhost:8000";
+        const response = await fetch(`${baseUrl}/api/videos`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch videos");
+        }
+
+        const data = await response.json();
+        const videos = Array.isArray(data?.videos) ? data.videos : [];
+
+        if (videos.length > 0) {
+          const first = videos[0];
+          const id = first.id || first.video_id || first.uuid;
+
+          if (id) {
+            setVideoUrl(`${baseUrl}/api/videos/${id}/file`);
+          } else {
+            setError("Invalid video data received from server");
+          }
+        } else {
+          setVideoUrl(null);
+        }
+      } catch (err) {
+        console.error("Error fetching videos", err);
+        setError("Unable to load lecture clip.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void fetchVideo();
+  }, [isCollapsed, videoUrl, isLoading]);
   const handleSkipBack = () => {
     const video = document.querySelector("video");
     if (video) video.currentTime -= 10;
@@ -57,10 +101,10 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ isCollapsed, colors,
       {!isCollapsed && (
         <div className="flex-1 p-4 flex flex-col overflow-hidden">
           <Card className="overflow-hidden flex-1 flex flex-col items-center justify-center" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
-            {hasVideos ? (
+            {videoUrl ? (
               <CardContent className="p-0 flex-1 flex flex-col overflow-hidden w-full">
                 <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
-                  <video className="w-full h-full object-contain" src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+                  <video className="w-full h-full object-contain" src={videoUrl} controls>
                     Your browser does not support the video tag.
                   </video>
                 </div>
@@ -87,10 +131,12 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ isCollapsed, colors,
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold mb-2" style={{ color: colors.primaryText }}>
-                      No Lecture Recordings
+                      {isLoading ? "Loading lecture clip..." : "No Lecture Recordings"}
                     </h3>
                     <p className="text-sm mb-4" style={{ color: colors.secondaryText }}>
-                      Use our browser extension to capture lecture recordings
+                      {error
+                        ? error
+                        : "Use our browser extension to capture lecture recordings"}
                     </p>
                   </div>
                   <Button

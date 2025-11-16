@@ -194,7 +194,6 @@ export const Studybuddy = () => {
             pageNumber={pageNumber}
             isPlaying={isPlaying}
             hasPdfMaterials={getPdfMaterials().length > 0}
-            hasVideoMaterials={getVideoMaterials().length > 0}
             onMouseDown={handleMouseDown}
             onToggleSlides={() => setIsSlidesCollapsed(!isSlidesCollapsed)}
             onToggleVideo={() => setIsVideoCollapsed(!isVideoCollapsed)}

@@ -15,7 +15,6 @@ type RightPanelProps = {
   pageNumber: number;
   isPlaying: boolean;
   hasPdfMaterials: boolean;
-  hasVideoMaterials: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
   onToggleSlides: () => void;
   onToggleVideo: () => void;
@@ -32,7 +31,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   pageNumber,
   isPlaying,
   hasPdfMaterials,
-  hasVideoMaterials,
   onMouseDown,
   onToggleSlides,
   onToggleVideo,
@@ -78,7 +76,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               isCollapsed={isVideoCollapsed} 
               colors={colors} 
               isPlaying={isPlaying} 
-              hasVideos={hasVideoMaterials}
               onToggle={onToggleVideo} 
               onSetPlaying={onSetPlaying} 
             />
