@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ChevronUpIcon, ChevronDownIcon, UploadIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -25,6 +25,7 @@ export const SlidesSection: React.FC<SlidesSectionProps> = ({
   const [pdfSrc, setPdfSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pdfUrlRef = useRef<string | null>(null);
 
   // Fetch first PDF from backend when the section is opened
   useEffect(() => {
@@ -58,8 +59,21 @@ export const SlidesSection: React.FC<SlidesSectionProps> = ({
             return;
           }
 
-          // Backend serves the PDF via the /api/documents/{document_id} route
-          setPdfSrc(`${baseUrl}/api/documents/${documentId}`);
+          // Stream the file as a blob so we can safely render it inline
+          const fileResponse = await fetch(`${baseUrl}/api/documents/${documentId}/file`);
+
+          if (!fileResponse.ok) {
+            throw new Error("Failed to fetch document file");
+          }
+
+          const blob = await fileResponse.blob();
+          const objectUrl = URL.createObjectURL(blob);
+
+          if (pdfUrlRef.current) {
+            URL.revokeObjectURL(pdfUrlRef.current);
+          }
+          pdfUrlRef.current = objectUrl;
+          setPdfSrc(objectUrl);
         }
       } catch (err) {
         console.error("Error fetching documents", err);
@@ -71,6 +85,14 @@ export const SlidesSection: React.FC<SlidesSectionProps> = ({
 
     void fetchFirstDocument();
   }, [isCollapsed, pdfSrc, isLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrlRef.current) {
+        URL.revokeObjectURL(pdfUrlRef.current);
+      }
+    };
+  }, []);
 
   const hasAnySlides = !!pdfSrc || hasMaterials;
 
