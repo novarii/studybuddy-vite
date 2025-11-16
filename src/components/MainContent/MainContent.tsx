@@ -1,5 +1,5 @@
 import React from "react";
-import { SlidersHorizontalIcon, UploadIcon, PaperclipIcon, SendIcon, XIcon } from "lucide-react";
+import { SlidersHorizontalIcon, UploadIcon, PaperclipIcon, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
 import type { ColorScheme } from "../../types";
@@ -33,7 +33,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   onOpenMaterials,
 }) => {
   return (
-    <main className="flex-1 flex flex-col opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
+    <main className="flex-1 flex flex-col min-h-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
       <header className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: colors.border }}>
         <h2 className="text-lg font-semibold" style={{ color: colors.primaryText }}>
           StudyBuddy
@@ -50,7 +50,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       </header>
 
       <div
-        className="flex-1 flex flex-col p-6 relative overflow-hidden" // Added overflow-hidden here
+        className="flex-1 flex flex-col p-6 relative min-h-0 overflow-hidden"
         onDragEnter={onDragEnter}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
@@ -71,7 +71,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         )}
 
         <div
-          className="flex-1 rounded-lg border p-4 mb-4"
+          className="flex-1 min-h-0 rounded-lg border p-4 mb-4 overflow-hidden"
           style={{
             backgroundColor: colors.card,
             borderColor: colors.border,
@@ -79,7 +79,7 @@ export const MainContent: React.FC<MainContentProps> = ({
           }}
         >
           <CopilotChat
-            className="h-full"
+            className="h-full overflow-y-auto"
             labels={{
               title: "StudyBuddy Assistant",
               placeholder: "Ask about the lecture content or paste a problem...",
@@ -119,39 +119,6 @@ export const MainContent: React.FC<MainContentProps> = ({
             </Button>
           </div>
         )}
-
-        <div className="relative flex-shrink-0">
-          <input
-            type="file"
-            id="file-upload-input"
-            multiple
-            accept=".pdf"
-            className="hidden"
-            onChange={onFileSelect}
-          />
-          <div className="flex justify-end gap-2 mt-2">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              style={{ color: colors.primaryText }}
-              onClick={() => document.getElementById("file-upload-input")?.click()}
-            >
-              <PaperclipIcon className="w-4 h-4" />
-            </Button>
-            <Button
-              size="icon"
-              className="h-8 w-8 rounded-full"
-              style={{ backgroundColor: colors.accent, color: colors.buttonIcon }}
-            >
-              <SendIcon className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-
-        <footer className="text-center text-xs mt-4 flex-shrink-0" style={{ color: colors.secondaryText }}> {/* Added flex-shrink-0 */}
-          StudyBuddy@2025 | All rights reserved
-        </footer>
       </div>
     </main>
   );
