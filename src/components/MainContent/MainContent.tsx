@@ -1,18 +1,14 @@
-import React, { useRef, useEffect } from "react";
+import React from "react";
 import { SlidersHorizontalIcon, UploadIcon, PaperclipIcon, SendIcon, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
-import { Textarea } from "../ui/textarea";
 import { ScrollArea } from "../ui/scroll-area";
-import type { ColorScheme, ChatMessage } from "../../types"; // Use updated ChatMessage type
-import { AnimatedText } from "../Chat/AnimatedText"; // New import
+import type { ColorScheme } from "../../types";
+import { CopilotChat } from "@copilotkit/react-ui";
 
 type MainContentProps = {
   colors: ColorScheme;
   isDragging: boolean;
   uploadedFiles: File[];
-  messages: ChatMessage[];
-  inputValue: string;
-  isLoading: boolean;
   onDragEnter: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;
@@ -21,17 +17,12 @@ type MainContentProps = {
   onRemoveFile: (index: number) => void;
   onSaveMaterials: () => void;
   onOpenMaterials: () => void;
-  onInputChange: (value: string) => void;
-  onSendMessage: () => void;
 };
 
 export const MainContent: React.FC<MainContentProps> = ({
   colors,
   isDragging,
   uploadedFiles,
-  messages,
-  inputValue,
-  isLoading,
   onDragEnter,
   onDragOver,
   onDragLeave,
@@ -40,25 +31,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   onRemoveFile,
   onSaveMaterials,
   onOpenMaterials,
-  onInputChange,
-  onSendMessage,
 }) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null); // Ref for textarea
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      textareaRef.current?.focus(); // Focus after loading
-    }
-  }, [isLoading]);
   return (
     <main className="flex-1 flex flex-col opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
       <header className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: colors.border }}>
@@ -97,65 +70,22 @@ export const MainContent: React.FC<MainContentProps> = ({
           </div>
         )}
 
-        <ScrollArea className="flex-1"> {/* Removed mb-4 */}
-          <div className="space-y-4 p-4">
-            {messages.length === 0 ? (
-              <div className="text-center py-12" style={{ color: colors.secondaryText }}>
-                <p className="text-sm">Start a conversation by asking a question about your course materials</p>
-              </div>
-            ) : (
-              <>
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    {message.role === "user" ? (
-                      <div
-                        className="max-w-[80%] rounded-lg p-3 rounded-br-none"
-                        style={{
-                          backgroundColor: colors.accent,
-                          color: colors.buttonIcon,
-                        }}
-                      >
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        <span className="text-xs opacity-70 mt-1 block">
-                          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    ) : (
-                      <div // No bubble for assistant
-                        className="max-w-[80%] p-3" // Removed rounded-lg, background color
-                        style={{
-                          color: colors.primaryText,
-                        }}
-                      >
-                        <p className="text-sm whitespace-pre-wrap">
-                          {message.isTyping ? (
-                            <div className="flex items-center gap-2">
-                              <div className="flex gap-1">
-                                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: colors.accent, animationDelay: "0ms" }} />
-                                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: colors.accent, animationDelay: "150ms" }} />
-                                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: colors.accent, animationDelay: "300ms" }} />
-                              </div>
-                              <span className="text-sm">Thinking...</span>
-                            </div>
-                          ) : (
-                            <AnimatedText text={message.content} />
-                          )}
-                        </p>
-                        <span className="text-xs opacity-70 mt-1 block">
-                          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </>
-            )}
-          </div>
-        </ScrollArea>
+        <div
+          className="flex-1 rounded-lg border p-4 mb-4"
+          style={{
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            color: colors.primaryText,
+          }}
+        >
+          <CopilotChat
+            className="h-full"
+            labels={{
+              title: "StudyBuddy Assistant",
+              placeholder: "Ask about the lecture content or paste a problem...",
+            }}
+          />
+        </div>
 
         {uploadedFiles.length > 0 && (
           <div className="mb-3">
@@ -190,46 +120,29 @@ export const MainContent: React.FC<MainContentProps> = ({
           </div>
         )}
 
-        <div className="relative flex-shrink-0"> {/* Added flex-shrink-0 */}
-          <Textarea
-            ref={textareaRef} // Attach ref
-            placeholder="Ask about the lecture content or paste a problem..."
-            className="pr-20 min-h-[60px] max-h-[200px] rounded-lg resize-none overflow-y-auto"
-            style={{
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              color: colors.primaryText,
-              paddingRight: "5rem",
-            }}
-            rows={2}
-            value={inputValue}
-            onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                onSendMessage();
-              }
-            }}
-            disabled={isLoading}
+        <div className="relative flex-shrink-0">
+          <input
+            type="file"
+            id="file-upload-input"
+            multiple
+            accept=".pdf"
+            className="hidden"
+            onChange={onFileSelect}
           />
-          <div className="absolute right-2 bottom-2 flex items-center gap-2">
-            <input type="file" id="file-upload-input" multiple accept=".pdf" className="hidden" onChange={onFileSelect} />
+          <div className="flex justify-end gap-2 mt-2">
             <Button
               size="icon"
               variant="ghost"
               className="h-8 w-8"
               style={{ color: colors.primaryText }}
               onClick={() => document.getElementById("file-upload-input")?.click()}
-              disabled={isLoading}
             >
               <PaperclipIcon className="w-4 h-4" />
             </Button>
-            <Button 
-              size="icon" 
-              className="h-8 w-8 rounded-full" 
+            <Button
+              size="icon"
+              className="h-8 w-8 rounded-full"
               style={{ backgroundColor: colors.accent, color: colors.buttonIcon }}
-              onClick={onSendMessage}
-              disabled={isLoading || !inputValue.trim()}
             >
               <SendIcon className="w-4 h-4" />
             </Button>

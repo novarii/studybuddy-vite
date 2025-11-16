@@ -10,7 +10,6 @@ import { Toaster } from "../../components/ui/toaster";
 import { useToast } from "../../hooks/use-toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useResizePanel } from "../../hooks/useResizePanel";
-import { useChat } from "../../hooks/useChat";
 import { darkModeColors, lightModeColors } from "../../constants/colors";
 import type { Course, Material } from "../../types";
 
@@ -34,8 +33,6 @@ export const Studybuddy = () => {
   const colors = isDarkMode ? darkModeColors : lightModeColors;
   const currentCourse = courses.find((c) => c.id === currentCourseId) ?? courses[0] ?? null;
 
-  const { messages, isLoading, inputValue, setInputValue, sendMessage, deleteCourseHistory } = useChat(currentCourseId);
-
   const { uploadedFiles, isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop, handleFileSelect, removeFile, clearFiles } = useFileUpload();
 
   const { panelWidth, isResizing, handleMouseDown } = useResizePanel(400, 800, 400);
@@ -46,13 +43,10 @@ export const Studybuddy = () => {
   };
 
   const handleDeleteCourse = (courseId: string) => {
-    const courseToDelete = courses.find(c => c.id === courseId);
+    const courseToDelete = courses.find((c) => c.id === courseId);
     const filteredCourses = courses.filter((c) => c.id !== courseId);
     setCourses(filteredCourses);
     
-    // Delete chat history for the deleted course
-    deleteCourseHistory(courseId);
-
     if (currentCourseId === courseId) {
       if (filteredCourses.length > 0) {
         setCurrentCourseId(filteredCourses[0].id);
@@ -181,9 +175,6 @@ export const Studybuddy = () => {
             colors={colors}
             isDragging={isDragging}
             uploadedFiles={uploadedFiles}
-            messages={messages}
-            inputValue={inputValue}
-            isLoading={isLoading}
             onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -192,8 +183,6 @@ export const Studybuddy = () => {
             onRemoveFile={removeFile}
             onSaveMaterials={handleSaveMaterials}
             onOpenMaterials={() => setIsMaterialsDialogOpen(true)}
-            onInputChange={setInputValue}
-            onSendMessage={sendMessage}
           />
 
           <RightPanel
