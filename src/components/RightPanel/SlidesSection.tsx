@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronUpIcon, ChevronDownIcon, UploadIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -12,6 +12,10 @@ type SlidesSectionProps = {
   hasMaterials: boolean;
   onToggle: () => void;
   onUploadClick: () => void;
+  preloadedDocument?: {
+    id: string;
+    name?: string;
+  };
 };
 
 export const SlidesSection: React.FC<SlidesSectionProps> = ({
@@ -21,25 +25,61 @@ export const SlidesSection: React.FC<SlidesSectionProps> = ({
   hasMaterials,
   onToggle,
   onUploadClick,
+  preloadedDocument,
 }) => {
   const [pdfSrc, setPdfSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pdfUrlRef = useRef<string | null>(null);
+  const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
+
+  const baseUrl = useMemo(
+    () =>
+      import.meta.env.VITE_BACKEND_API_URL ||
+      import.meta.env.VITE_VIDEO_API_URL ||
+      "http://localhost:8000",
+    []
+  );
+
+  const loadDocumentById = useCallback(
+    async (documentId: string) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const fileResponse = await fetch(`${baseUrl}/api/documents/${documentId}/file`);
+
+        if (!fileResponse.ok) {
+          throw new Error("Failed to fetch document file");
+        }
+
+        const blob = await fileResponse.blob();
+        const objectUrl = URL.createObjectURL(blob);
+
+        if (pdfUrlRef.current) {
+          URL.revokeObjectURL(pdfUrlRef.current);
+        }
+
+        pdfUrlRef.current = objectUrl;
+        setPdfSrc(objectUrl);
+        setCurrentDocumentId(documentId);
+      } catch (err) {
+        console.error("Error fetching documents", err);
+        setError("Unable to load course slides.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [baseUrl]
+  );
 
   // Fetch first PDF from backend when the section is opened
   useEffect(() => {
-    if (isCollapsed || pdfSrc || isLoading) return;
+    if (isCollapsed || pdfSrc || isLoading || preloadedDocument) return;
 
     const fetchFirstDocument = async () => {
       try {
         setIsLoading(true);
         setError(null);
-
-        const baseUrl =
-          import.meta.env.VITE_BACKEND_API_URL ||
-          import.meta.env.VITE_VIDEO_API_URL ||
-          "http://localhost:8000";
 
         const response = await fetch(`${baseUrl}/api/documents`);
 
@@ -59,21 +99,7 @@ export const SlidesSection: React.FC<SlidesSectionProps> = ({
             return;
           }
 
-          // Stream the file as a blob so we can safely render it inline
-          const fileResponse = await fetch(`${baseUrl}/api/documents/${documentId}/file`);
-
-          if (!fileResponse.ok) {
-            throw new Error("Failed to fetch document file");
-          }
-
-          const blob = await fileResponse.blob();
-          const objectUrl = URL.createObjectURL(blob);
-
-          if (pdfUrlRef.current) {
-            URL.revokeObjectURL(pdfUrlRef.current);
-          }
-          pdfUrlRef.current = objectUrl;
-          setPdfSrc(objectUrl);
+          await loadDocumentById(documentId);
         }
       } catch (err) {
         console.error("Error fetching documents", err);
@@ -84,7 +110,15 @@ export const SlidesSection: React.FC<SlidesSectionProps> = ({
     };
 
     void fetchFirstDocument();
-  }, [isCollapsed, pdfSrc, isLoading]);
+  }, [isCollapsed, pdfSrc, isLoading, preloadedDocument, baseUrl, loadDocumentById]);
+
+  // Load the preloaded document when provided (after demo response)
+  useEffect(() => {
+    if (!preloadedDocument || isCollapsed) return;
+    if (currentDocumentId === preloadedDocument.id && pdfSrc) return;
+
+    void loadDocumentById(preloadedDocument.id);
+  }, [preloadedDocument, isCollapsed, loadDocumentById, currentDocumentId, pdfSrc]);
 
   useEffect(() => {
     return () => {
@@ -125,6 +159,11 @@ export const SlidesSection: React.FC<SlidesSectionProps> = ({
                   title="PDF Viewer"
                   key={pdfSrc + pageNumber}
                 />
+                {preloadedDocument?.name && (
+                  <div className="text-xs px-3 py-2 border-t" style={{ borderColor: colors.border, color: colors.secondaryText }}>
+                    Showing {preloadedDocument.name}
+                  </div>
+                )}
               </CardContent>
             ) : (
               <CardContent className="p-8 text-center">

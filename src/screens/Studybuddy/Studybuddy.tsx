@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "../../components/Sidebar/Sidebar";
 import { MainContent } from "../../components/MainContent/MainContent";
 import { SunIcon, MoonIcon } from "lucide-react";
@@ -14,6 +14,12 @@ import { darkModeColors, lightModeColors } from "../../constants/colors";
 import type { Course, Material } from "../../types";
 import { apiService } from "../../services/api";
 
+const DEMO_VIDEO_ID = "003cbc6c-214e-421b-9278-b383013fe4b4";
+const DEMO_VIDEO_TIMESTAMP_SECONDS = 30 * 60 + 58;
+const DEMO_VIDEO_TIMESTAMP_LABEL = "30:58";
+const DEMO_DOCUMENT_ID = "doc_20251116_113045_649868";
+const DEMO_DOCUMENT_NAME = "doc_20251116_113045_649868.pdf";
+
 export const Studybuddy = () => {
   const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -28,10 +34,11 @@ export const Studybuddy = () => {
   const [isMaterialsDialogOpen, setIsMaterialsDialogOpen] = useState(false);
   const [newCourseName, setNewCourseName] = useState("");
   const [hoveredCourseId, setHoveredCourseId] = useState<string | null>(null);
-  const [pageNumber] = useState(1);
+  const [pageNumber, setPageNumber] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
+  const [demoAssetsUnlocked, setDemoAssetsUnlocked] = useState(false);
 
   const colors = isDarkMode ? darkModeColors : lightModeColors;
   const currentCourse = courses.find((c) => c.id === currentCourseId) ?? courses[0] ?? null;
@@ -50,6 +57,21 @@ export const Studybuddy = () => {
   } = useFileUpload();
 
   const { panelWidth, isResizing, handleMouseDown } = useResizePanel(400, 800, 400);
+  const chatStartedRef = useRef(false);
+
+  const handleChatProgressChange = useCallback(
+    (inProgress: boolean) => {
+      if (inProgress) {
+        chatStartedRef.current = true;
+        return;
+      }
+
+      if (chatStartedRef.current && !demoAssetsUnlocked) {
+        setDemoAssetsUnlocked(true);
+      }
+    },
+    [demoAssetsUnlocked]
+  );
 
   const handleCourseChange = (course: Course) => {
     console.log("Current courseId:", course.id);
@@ -171,6 +193,50 @@ export const Studybuddy = () => {
     setIsUploadingDocuments(false);
   };
 
+  useEffect(() => {
+    if (!demoAssetsUnlocked || !currentCourse) return;
+
+    setMaterials(prevMaterials => {
+      const alreadyExists = prevMaterials.some(material => material.id === DEMO_DOCUMENT_ID);
+      if (alreadyExists) {
+        return prevMaterials;
+      }
+
+      return [
+        ...prevMaterials,
+        {
+          id: DEMO_DOCUMENT_ID,
+          name: DEMO_DOCUMENT_NAME,
+          courseId: currentCourse.id,
+          type: "pdf",
+          documentId: DEMO_DOCUMENT_ID,
+          status: "stored",
+        },
+      ];
+    });
+  }, [demoAssetsUnlocked, currentCourse]);
+
+  useEffect(() => {
+    if (demoAssetsUnlocked && pageNumber !== 75) {
+      setPageNumber(75);
+    }
+  }, [demoAssetsUnlocked, pageNumber]);
+
+  const demoVideo = demoAssetsUnlocked
+    ? {
+        id: DEMO_VIDEO_ID,
+        timestampSeconds: DEMO_VIDEO_TIMESTAMP_SECONDS,
+        timestampLabel: DEMO_VIDEO_TIMESTAMP_LABEL,
+      }
+    : null;
+
+  const demoDocument = demoAssetsUnlocked
+    ? {
+        id: DEMO_DOCUMENT_ID,
+        name: DEMO_DOCUMENT_NAME,
+      }
+    : null;
+
   const handleUploadClick = () => {
     document.getElementById("file-upload-input")?.click();
   };
@@ -238,6 +304,7 @@ export const Studybuddy = () => {
             onSaveMaterials={handleSaveMaterials}
             onOpenMaterials={() => setIsMaterialsDialogOpen(true)}
             isSavingMaterials={isUploadingDocuments}
+            onChatProgressChange={handleChatProgressChange}
           />
 
           <RightPanel
@@ -254,6 +321,8 @@ export const Studybuddy = () => {
             onToggleVideo={() => setIsVideoCollapsed(!isVideoCollapsed)}
             onSetPlaying={setIsPlaying}
             onUploadClick={handleUploadClick}
+            preloadedDocument={demoDocument}
+            preloadedVideo={demoVideo}
           />
         </>
       ) : (

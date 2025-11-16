@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronUpIcon, ChevronDownIcon, SkipBackIcon, PlayIcon, PauseIcon, SkipForwardIcon, VideoIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -11,23 +11,35 @@ type VideoSectionProps = {
   isPlaying: boolean;
   onToggle: () => void;
   onSetPlaying: (playing: boolean) => void;
+  preloadedVideo?: {
+    id: string;
+    timestampSeconds?: number;
+    timestampLabel?: string;
+  };
 };
 
-export const VideoSection: React.FC<VideoSectionProps> = ({ isCollapsed, colors, isPlaying, onToggle, onSetPlaying }) => {
+export const VideoSection: React.FC<VideoSectionProps> = ({
+  isCollapsed,
+  colors,
+  isPlaying,
+  onToggle,
+  onSetPlaying,
+  preloadedVideo,
+}) => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const baseUrl = useMemo(() => import.meta.env.VITE_VIDEO_API_URL || "http://localhost:8000", []);
 
   // Fetch the first available video from the backend when the section is opened
   useEffect(() => {
-    if (isCollapsed || videoUrl || isLoading) return;
+    if (isCollapsed || videoUrl || isLoading || preloadedVideo) return;
 
     const fetchVideo = async () => {
       try {
         setIsLoading(true);
         setError(null);
-
-        const baseUrl = import.meta.env.VITE_VIDEO_API_URL || "http://localhost:8000";
         const response = await fetch(`${baseUrl}/api/videos`);
 
         if (!response.ok) {
@@ -58,7 +70,32 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ isCollapsed, colors,
     };
 
     void fetchVideo();
-  }, [isCollapsed, videoUrl, isLoading]);
+  }, [isCollapsed, videoUrl, isLoading, preloadedVideo, baseUrl]);
+
+  useEffect(() => {
+    if (!preloadedVideo) return;
+    setError(null);
+    setVideoUrl(`${baseUrl}/api/videos/${preloadedVideo.id}/file`);
+  }, [preloadedVideo, baseUrl]);
+
+  useEffect(() => {
+    if (!preloadedVideo?.timestampSeconds) return;
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    const applyTimestamp = () => {
+      videoElement.currentTime = preloadedVideo.timestampSeconds ?? 0;
+    };
+
+    if (videoElement.readyState >= 1) {
+      applyTimestamp();
+    } else {
+      videoElement.addEventListener("loadedmetadata", applyTimestamp, { once: true });
+      return () => {
+        videoElement.removeEventListener("loadedmetadata", applyTimestamp);
+      };
+    }
+  }, [preloadedVideo, videoUrl]);
   const handleSkipBack = () => {
     const video = document.querySelector("video");
     if (video) video.currentTime -= 10;
@@ -104,9 +141,14 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ isCollapsed, colors,
             {videoUrl ? (
               <CardContent className="p-0 flex-1 flex flex-col overflow-hidden w-full">
                 <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
-                  <video className="w-full h-full object-contain" src={videoUrl} controls>
+                  <video className="w-full h-full object-contain" src={videoUrl} controls ref={videoRef}>
                     Your browser does not support the video tag.
                   </video>
+                  {preloadedVideo?.timestampLabel && (
+                    <div className="absolute top-3 right-3 text-xs px-2 py-1 rounded-full" style={{ backgroundColor: `${colors.panel}dd`, color: colors.primaryText }}>
+                      Jumped to {preloadedVideo.timestampLabel}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             ) : (

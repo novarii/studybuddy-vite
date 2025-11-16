@@ -18,6 +18,7 @@ type MainContentProps = {
   onSaveMaterials: () => void | Promise<void>;
   onOpenMaterials: () => void;
   isSavingMaterials: boolean;
+  onChatProgressChange?: (inProgress: boolean) => void;
 };
 
 export const MainContent: React.FC<MainContentProps> = ({
@@ -33,6 +34,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   onSaveMaterials,
   onOpenMaterials,
   isSavingMaterials,
+  onChatProgressChange,
 }) => {
   return (
     <main className="flex-1 flex flex-col min-h-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
@@ -86,6 +88,7 @@ export const MainContent: React.FC<MainContentProps> = ({
               title: "StudyBuddy Assistant",
               placeholder: "Ask about the lecture content or paste a problem...",
             }}
+            onInProgress={onChatProgressChange}
           />
         </div>
 

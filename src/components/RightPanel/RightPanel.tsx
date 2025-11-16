@@ -6,6 +6,17 @@ import { VideoSection } from "./VideoSection";
 import type { ColorScheme } from "../../types";
 import { cn } from "../../lib/utils";
 
+type DemoDocument = {
+  id: string;
+  name?: string;
+};
+
+type DemoVideo = {
+  id: string;
+  timestampSeconds?: number;
+  timestampLabel?: string;
+};
+
 type RightPanelProps = {
   panelWidth: number;
   isResizing: boolean;
@@ -20,6 +31,8 @@ type RightPanelProps = {
   onToggleVideo: () => void;
   onSetPlaying: (playing: boolean) => void;
   onUploadClick: () => void;
+  preloadedDocument?: DemoDocument | null;
+  preloadedVideo?: DemoVideo | null;
 };
 
 export const RightPanel: React.FC<RightPanelProps> = ({
@@ -36,6 +49,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onToggleVideo,
   onSetPlaying,
   onUploadClick,
+  preloadedDocument,
+  preloadedVideo,
 }) => {
   const bothCollapsed = isSlidesCollapsed && isVideoCollapsed;
 
@@ -71,13 +86,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               hasMaterials={hasPdfMaterials}
               onToggle={onToggleSlides} 
               onUploadClick={onUploadClick}
+              preloadedDocument={preloadedDocument ?? undefined}
             />
             <VideoSection 
               isCollapsed={isVideoCollapsed} 
               colors={colors} 
               isPlaying={isPlaying} 
               onToggle={onToggleVideo} 
-              onSetPlaying={onSetPlaying} 
+              onSetPlaying={onSetPlaying}
+              preloadedVideo={preloadedVideo ?? undefined}
             />
           </>
         )}
