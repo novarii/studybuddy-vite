@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useCopilotChat } from "@copilotkit/react-core";
+import { TextMessage, MessageRole } from "@copilotkit/runtime-client-gql";
 import { Sidebar } from "../../components/Sidebar/Sidebar";
 import { MainContent } from "../../components/MainContent/MainContent";
 import { SunIcon, MoonIcon } from "lucide-react";
@@ -20,15 +22,222 @@ const DEMO_VIDEO_TIMESTAMP_LABEL = "30:58";
 const DEMO_DOCUMENT_ID = "doc_20251116_113045_649868";
 const DEMO_DOCUMENT_NAME = "doc_20251116_113045_649868.pdf";
 
+type DemoTopic = {
+  name: string;
+  date?: string;
+  reading?: string;
+  assignments?: string;
+};
+
+type DemoUnit = {
+  id: string;
+  title: string;
+  topics: DemoTopic[];
+};
+
+const DEMO_UNITS: DemoUnit[] = [
+  {
+    id: "unit-data-representation",
+    title: "Unit 1 - Data Representation",
+    topics: [
+      {
+        name: "Introduction",
+        date: "Mon. Aug. 25",
+        reading: "Chapter 1",
+        assignments: "Get a CSUG account; Set up university VPN.",
+      },
+      {
+        name: "Binary and Integers I",
+        date: "Wed. Aug. 27",
+        reading: "Chapter 2",
+        assignments: "A1: datalab (bit twiddling) out.",
+      },
+      {
+        name: "Binary and Integers II",
+        date: "Wed. Sep. 3",
+        reading: "Chapter 2 (continued)",
+      },
+      {
+        name: "Floating Point",
+        date: "Mon. Sep. 8",
+        reading: "Chapter 3",
+      },
+    ],
+  },
+  {
+    id: "unit-assembly-programming",
+    title: "Unit 2 - Assembly Programming",
+    topics: [
+      {
+        name: "ISA Overview",
+        date: "Wed. Sep. 10",
+      },
+      {
+        name: "Data Movement and Compute Instructions",
+        date: "Mon. Sep. 15",
+        assignments: "A1 due at midnight; A2: the binary bomb released.",
+      },
+      {
+        name: "Control Instructions",
+        date: "Wed. Sep. 17",
+      },
+      {
+        name: "Functions",
+        date: "Mon. Sep. 22",
+      },
+      {
+        name: "Data Structures and Buffer Overflow",
+        date: "Wed. Sep. 24",
+        reading: "Chapter 4 intro; Sections 4.2-4.3",
+        assignments: "Compare RISC vs CISC approaches.",
+      },
+    ],
+  },
+  {
+    id: "unit-systems-architecture",
+    title: "Unit 3 - Systems & Advanced Concepts",
+    topics: [
+      {
+        name: "Instruction Encoding",
+        date: "Mon. Sep. 29",
+        reading: "Sections 4.5, 4.6, 5.7",
+      },
+      {
+        name: "Single-cycle CPU",
+        date: "Wed. Oct. 1",
+        reading: "Sections 4.5, 4.6, 5.7",
+        assignments: "A2 due; A3: the buffer bomb out.",
+      },
+      {
+        name: "Pipelining I",
+        date: "Wed. Oct. 15",
+      },
+      {
+        name: "Pipelining II",
+        date: "Mon. Oct. 20",
+      },
+      {
+        name: "Cache, Memory, and Storage",
+        date: "Wed. Oct. 22",
+        reading: "Chapter 6.2-6.4",
+      },
+      {
+        name: "Cache",
+        date: "Mon. Oct. 27",
+        reading: "Chapter 6.5-6.6",
+        assignments: "A3 due; A4: cache simulator out.",
+      },
+      {
+        name: "Processes",
+        date: "Wed. Oct. 29",
+        reading: "Skim Chapter 8.1 and 8.3; Read Chapter 8.2",
+      },
+      {
+        name: "Signals",
+        date: "Mon. Nov. 3",
+        reading: "Chapter 8.5",
+      },
+      {
+        name: "Interrupts and Exceptions",
+        date: "Wed. Nov. 5",
+        reading: "Chapter 9.1-9.6",
+      },
+      {
+        name: "Virtual Memory",
+        date: "Mon. Nov. 10",
+        reading: "Chapter 9.6-9.7",
+      },
+      {
+        name: "VM Optimizations",
+        date: "Wed. Nov. 12",
+        reading: "Chapter 9.8",
+        assignments: "A4 due Monday 11/17.",
+      },
+      {
+        name: "Memory Management",
+        date: "Mon. Nov. 17",
+        reading: "Chapter 9.9",
+        assignments: "A5: memory allocation out.",
+      },
+      {
+        name: "Advanced Memory Management",
+        date: "Wed. Nov. 19",
+        reading: "Chapter 9.10",
+      },
+      {
+        name: "Multi-threading and Multi-core",
+        date: "Mon. Nov. 24",
+        reading: "Chapters 12.4, 12.5.1-12.5.3, 12.6, 12.7.5",
+      },
+      {
+        name: "Systems Security",
+        date: "Mon. Dec. 1",
+      },
+      {
+        name: "Review Class",
+        date: "Wed. Dec. 3",
+      },
+    ],
+  },
+];
+
+const buildTopicPrompt = (unitTitle: string, topic: DemoTopic) => {
+  let prompt = `Explain the topic "${topic.name}" from the ${unitTitle} unit of our CS 242 Computer Systems demo course.`;
+  if (topic.date) {
+    prompt += ` It was covered on ${topic.date}.`;
+  }
+  prompt += " Focus on why it matters for systems programming students.";
+  if (topic.reading) {
+    prompt += ` Reference the assigned reading (${topic.reading}).`;
+  }
+  if (topic.assignments) {
+    prompt += ` Mention the related assignments or milestones: ${topic.assignments}`;
+  }
+  prompt += " Keep the answer concise enough for a live walkthrough but include concrete talking points.";
+  return prompt;
+};
+
+const createDemoCourse = (): {
+  demoCourse: Course;
+  topicPrompts: Map<string, string>;
+  firstTopic: string;
+} => {
+  const topicPrompts = new Map<string, string>();
+  const content = DEMO_UNITS.map((unit) => ({
+    id: unit.id,
+    title: unit.title,
+    children: unit.topics.map((topic) => {
+      topicPrompts.set(topic.name, buildTopicPrompt(unit.title, topic));
+      return topic.name;
+    }),
+  }));
+
+  return {
+    demoCourse: {
+      id: "course-demo",
+      name: "CSC 252 Computer Systems",
+      content,
+    },
+    topicPrompts,
+    firstTopic: content[0]?.children[0] ?? "",
+  };
+};
+
+const {
+  demoCourse: DEMO_COURSE,
+  topicPrompts: DEMO_TOPIC_PROMPTS,
+  firstTopic: DEMO_FIRST_TOPIC,
+} = createDemoCourse();
+
 export const Studybuddy = () => {
   const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSlidesCollapsed, setIsSlidesCollapsed] = useState(false);
   const [isVideoCollapsed, setIsVideoCollapsed] = useState(false);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [currentCourseId, setCurrentCourseId] = useState<string>("");
-  const [selectedTopic, setSelectedTopic] = useState("");
+  const [courses, setCourses] = useState<Course[]>([DEMO_COURSE]);
+  const [currentCourseId, setCurrentCourseId] = useState<string>(DEMO_COURSE.id);
+  const [selectedTopic, setSelectedTopic] = useState(DEMO_FIRST_TOPIC);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [isCreateCourseOpen, setIsCreateCourseOpen] = useState(false);
   const [isMaterialsDialogOpen, setIsMaterialsDialogOpen] = useState(false);
@@ -56,6 +265,7 @@ export const Studybuddy = () => {
     replaceFiles,
   } = useFileUpload();
 
+  const { appendMessage } = useCopilotChat();
   const { panelWidth, isResizing, handleMouseDown } = useResizePanel(400, 800, 400);
   const chatStartedRef = useRef(false);
 
@@ -71,6 +281,33 @@ export const Studybuddy = () => {
       }
     },
     [demoAssetsUnlocked]
+  );
+
+  const sendTopicPrompt = useCallback(
+    async (topic: string) => {
+      const prompt = DEMO_TOPIC_PROMPTS.get(topic);
+      if (!prompt) return;
+
+      try {
+        await appendMessage(
+          new TextMessage({
+            role: MessageRole.User,
+            content: prompt,
+          })
+        );
+      } catch (error) {
+        console.error("Failed to send topic prompt", error);
+      }
+    },
+    [appendMessage]
+  );
+
+  const handleTopicSelect = useCallback(
+    (topic: string) => {
+      setSelectedTopic(topic);
+      void sendTopicPrompt(topic);
+    },
+    [sendTopicPrompt]
   );
 
   const handleCourseChange = (course: Course) => {
@@ -284,7 +521,7 @@ export const Studybuddy = () => {
             selectedTopic={selectedTopic}
             colors={colors}
             onCourseChange={handleCourseChange}
-            onTopicSelect={setSelectedTopic}
+            onTopicSelect={handleTopicSelect}
             onDeleteCourse={handleDeleteCourse}
             onCreateCourse={() => setIsCreateCourseOpen(true)}
             hoveredCourseId={hoveredCourseId}
