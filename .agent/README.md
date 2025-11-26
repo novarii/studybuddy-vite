@@ -4,11 +4,11 @@ This folder centralizes internal documentation for StudyBuddy. Start here to und
 
 ## Directory Map
 - **System**
-  - [`project_architecture.md`](System/project_architecture.md) — Full overview of the tech stack, repo layout, runtime architecture, and data models.
+  - [`project_architecture.md`](System/project_architecture.md) — Full overview of the tech stack, runtime architecture, CopilotKit agent wiring, and backend contracts.
 - **SOP**
   - [`feature_workflow.md`](SOP/feature_workflow.md) — Step-by-step checklist for planning, building, and validating new features.
 - **Tasks**
-  - [`llm-chat-prd.md`](Tasks/llm-chat-prd.md) — Product brief and implementation plan for replacing mock chat responses with a real LLM backend.
+  - _No active PRDs in `Tasks/` yet. Add one doc per feature when a product brief and implementation plan exists._
 
 ## How to Use These Docs
 1. Read the System doc first to get architectural context and current constraints.

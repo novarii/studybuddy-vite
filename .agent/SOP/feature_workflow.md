@@ -19,7 +19,7 @@ This SOP outlines how to safely add or extend functionality in StudyBuddy. Follo
 
 ## 4. Storage, Upload, and Chat Integrations
 1. `useFileUpload` currently assumes PDFs; if new formats are required, update its validation logic and the Save handler in `Studybuddy`.
-2. `useChat` must remain course-aware. When wiring to the real backend, swap the mock response inside `useChat` with the relevant `apiService` call and preserve optimistic updates.
+2. CopilotKit owns the chat UI. Use `useCopilotChat` to append scripted prompts (topic selections, demo flows) and configure `<CopilotKit>`/`<CopilotChat>` props instead of reviving the legacy `useChat` hook. When you need new server actions, add them to the Copilot agent or `apiService` and stream responses through the existing CopilotKit runtime URL.
 3. Keep `materials` and `courses` mutations immutable (`setState` with spreads) so future persistence layers can hook in.
 
 ## 5. QA & Validation
@@ -29,4 +29,3 @@ This SOP outlines how to safely add or extend functionality in StudyBuddy. Follo
 
 ## Related Docs
 - `.agent/System/project_architecture.md`
-- `.agent/Tasks/llm-chat-prd.md`
